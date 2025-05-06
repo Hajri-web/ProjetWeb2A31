@@ -9,26 +9,51 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
+    $recaptchaSecret = '6LcjaCkrAAAAALT51fWh-CA8ZDL05JIYiXZ1vps9'; // Replace with your Google reCAPTCHA secret key
+    $recaptchaResponse = $_POST['g-recaptcha-response'] ?? '';
 
-    try {
-        $user = $userController->authenticateUser($email, $password);
+    // Verify the reCAPTCHA response
+    $recaptchaUrl = 'https://www.google.com/recaptcha/api/siteverify';
+    $recaptchaData = [
+        'secret' => $recaptchaSecret,
+        'response' => $recaptchaResponse,
+        'remoteip' => $_SERVER['REMOTE_ADDR']
+    ];
 
-        $_SESSION['user_id'] = $user->getId();
-        $_SESSION['user_nom'] = $user->getNom();
-        $_SESSION['user_prenom'] = $user->getPrenom();
-        $_SESSION['user_Role'] = $user->getRole();
+    $options = [
+        'http' => [
+            'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+            'method'  => 'POST',
+            'content' => http_build_query($recaptchaData),
+        ],
+    ];
+    $context  = stream_context_create($options);
+    $verify = file_get_contents($recaptchaUrl, false, $context);
+    $captchaSuccess = json_decode($verify);
 
-        if ($user->getRole() === 'admin') {
-            header('Location: ../../view/backoffice/index.php');
-            exit();
-        } elseif ($user->getRole() === 'user') {
-            header('Location: ../../view/frontoffice/index2.php');
-            exit();
-        } else {
-            $error = "Unknown user Role.";
+    if (!$captchaSuccess->success) {
+        $error = 'Captcha verification failed. Please try again.';
+    } else {
+        try {
+            $user = $userController->authenticateUser($email, $password);
+
+            $_SESSION['user_id'] = $user->getId();
+            $_SESSION['user_nom'] = $user->getNom();
+            $_SESSION['user_prenom'] = $user->getPrenom();
+            $_SESSION['user_Role'] = $user->getRole();
+
+            if ($user->getRole() === 'admin') {
+                header('Location: ../../view/backoffice/afficher.php');
+                exit();
+            } elseif ($user->getRole() === 'user') {
+                header('Location: ../../view/frontoffice/afficher.php');
+                exit();
+            } else {
+                $error = "Unknown user Role.";
+            }
+        } catch (Exception $e) {
+            $error = $e->getMessage();
         }
-    } catch (Exception $e) {
-        $error = $e->getMessage();
     }
 }
 ?>
@@ -43,6 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     <link href="vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,700,900" rel="stylesheet">
     <link href="sb-admin-2.min.css" rel="stylesheet">
+    <a class="nav-link" href="index2.php">Déconnexion</a>
     <style>
         .text-danger {
             color: #dc3545;
@@ -82,6 +108,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 </head>
 <body class="bg-gradient-primary">
 
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-xl-10 col-lg-12 col-md-9">
@@ -99,35 +127,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                                         <?= htmlspecialchars($error) ?>
                                     </div>
                                 <?php endif; ?>
-                                <form class="user" method="POST" action="">
-                                    <div class="form-group">
-                                        <input type="text" name="email" class="form-control form-control-user"
-                                               id="email" aria-describedby="emailHelp"
-                                               placeholder="Enter Email Address...">
-                                        <span id="email_error" class="text-danger"></span>
-                                    </div>
-                                    <div class="form-group">
-                                        <input type="password" name="password" class="form-control form-control-user"
-                                               id="password" placeholder="Password">
-                                        <span id="password_error" class="text-danger"></span>
-                                    </div>
-                                    <div class="form-group">
-                                        <div class="custom-control custom-checkbox small">
-                                            <input type="checkbox" class="custom-control-input" id="customCheck">
-                                            <label class="custom-control-label" for="customCheck">Remember Me</label>
+                                    <form class="user" method="POST" action="">
+                                        <div class="form-group">
+                                            <input type="text" name="email" class="form-control form-control-user"
+                                                   id="email" aria-describedby="emailHelp"
+                                                   placeholder="Enter Email Address...">
+                                            <span id="email_error" class="text-danger"></span>
                                         </div>
-                                    </div>
-                                    <button type="submit" name="login" class="btn btn-primary btn-user btn-block">
-                                        Login
-                                    </button>
-                                    <hr>
-                                    <a href="index.html" class="btn btn-google btn-user btn-block">
-                                        <i class="fab fa-google fa-fw"></i> Login with Google
-                                    </a>
-                                    <a href="index.html" class="btn btn-facebook btn-user btn-block">
-                                        <i class="fab fa-facebook-f fa-fw"></i> Login with Facebook
-                                    </a>
-                                </form>
+                                        <div class="form-group">
+                                            <input type="password" name="password" class="form-control form-control-user"
+                                                   id="password" placeholder="Password">
+                                            <span id="password_error" class="text-danger"></span>
+                                        </div>
+                                        <div class="form-group">
+                                            <div class="custom-control custom-checkbox small">
+                                                <input type="checkbox" class="custom-control-input" id="customCheck">
+                                                <label class="custom-control-label" for="customCheck">Remember Me</label>
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <div class="g-recaptcha" data-sitekey="6LcjaCkrAAAAAMx3PD6qM2kcWcU0wE8cBtyomhSA"></div>
+                                        </div>
+                                        <button type="submit" name="login" class="btn btn-primary btn-user btn-block">
+                                            Login
+                                        </button>
+                                        <hr>
+                                        <a href="/projet/socialauth/googlelogin.php" class="btn btn-google btn-user btn-block">
+                                            <i class="fab fa-google fa-fw"></i> Login with Google
+                                        </a>
+                                        <a href="/projet/socialauth/facebooklogin.php" class="btn btn-facebook btn-user btn-block">
+                                            <i class="fab fa-facebook-f fa-fw"></i> Login with Facebook
+                                        </a>
+                                    </form>
                                 <hr>
                                 <div class="text-center">
                                     <a class="small" href="forgot-password.html">Forgot Password?</a>

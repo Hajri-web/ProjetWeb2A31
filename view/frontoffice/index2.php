@@ -64,7 +64,7 @@ require_once __DIR__ . '/../../config.php';
                                         <a class="nav-link" href="event-management.php">Event Management</a>
                                     </li>
                                     <li class="nav-item">
-    <a class="nav-link" href="index2.php">Déconnexion</a>
+   
 </li>
 
 </li>
