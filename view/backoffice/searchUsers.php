@@ -1,13 +1,5 @@
 <?php
 include_once(__DIR__ . '/../../controller/usercontroller.php');
-include_once(__DIR__ . '/../../model/user.php');
-$userModel = new UserModel();
-$results = [];
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['search'])) {
-    $search = $_GET['search'];
-    $results = $userModel->searchUsers($search);
-}
 ?>
 
 <!DOCTYPE html>
@@ -17,35 +9,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['search'])) {
 </head>
 <body>
     <h1>Recherche</h1>
-    <form method="get">
-        <input type="text" name="search" placeholder="ID, Nom ou Rôle" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
-        <button type="submit">Rechercher</button>
-    </form>
+    <input type="text" id="searchInput" placeholder="ID, Nom ou Rôle" autocomplete="off">
 
-    <?php if (!empty($results)): ?>
     <h2>Résultats :</h2>
-    <table border="1">
-        <tr>
-            <th>ID</th>
-            <th>Nom</th>
-            <th>Prénom</th>
-            <th>Email</th>
-            <th>Genre</th>
-            <th>Rôle</th>
-        </tr>
-        <?php foreach ($results as $user): ?>
-        <tr>
-            <td><?= $user['id'] ?></td>
-            <td><?= $user['nom'] ?></td>
-            <td><?= $user['prenom'] ?></td>
-            <td><?= $user['gmail'] ?></td>
-            <td><?= $user['genre'] ?></td>
-            <td><?= $user['role'] ?></td>
-        </tr>
-        <?php endforeach; ?>
+    <table border="1" id="resultsTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Email</th>
+                <th>Genre</th>
+                <th>Rôle</th>
+            </tr>
+        </thead>
+        <tbody id="resultsBody">
+        </tbody>
     </table>
-    <?php elseif (isset($_GET['search'])): ?>
-    <p>Aucun utilisateur trouvé.</p>
-    <?php endif; ?>
+    <p id="noResultsMessage" style="display:none;">Aucun utilisateur trouvé.</p>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const resultsTable = document.getElementById('resultsTable');
+        const resultsBody = document.getElementById('resultsBody');
+        const noResultsMessage = document.getElementById('noResultsMessage');
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            if (query.length === 0) {
+                resultsTable.style.display = 'none';
+                noResultsMessage.style.display = 'none';
+                resultsBody.innerHTML = '';
+                return;
+            }
+
+            fetch('searchUsersAjax.php?search=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    resultsBody.innerHTML = '';
+                    if (data.length > 0) {
+                        data.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.id}</td>
+                                <td>${user.nom}</td>
+                                <td>${user.prenom}</td>
+                                <td>${user.gmail || user.email || ''}</td>
+                                <td>${user.genre || ''}</td>
+                                <td>${user.role || user.Role || ''}</td>
+                            `;
+                            resultsBody.appendChild(row);
+                        });
+                        resultsTable.style.display = '';
+                        noResultsMessage.style.display = 'none';
+                    } else {
+                        resultsTable.style.display = 'none';
+                        noResultsMessage.style.display = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching search results:', error);
+                    resultsTable.style.display = 'none';
+                    noResultsMessage.style.display = 'none';
+                    resultsBody.innerHTML = '';
+                });
+        });
+    </script>
 </body>
 </html>

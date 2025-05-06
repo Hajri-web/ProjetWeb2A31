@@ -17,7 +17,7 @@ if (!class_exists('config')) {
                     self::$connexion = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
                     self::$connexion->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 } catch (PDOException $e) {
-                    echo 'Error: ' . $e->getMessage();
+                    throw new Exception('Database connection error: ' . $e->getMessage());
                 }
             }
             return self::$connexion;
